@@ -14,17 +14,20 @@ import tools.SortedArray;
 import java.awt.geom.Point2D;
 
 public class GerberBoard implements IGerberBoard{
+	private int imgx = 0;
+	private int imgy = 0;
 	private int imgw = 0;
 	private int imgh = 0;
+	private double locHole = 0.06;//inch
 
 
-	private LinkedList operations = new LinkedList();
+	private LinkedList<IShape> operations = new LinkedList<>();
 
 	public GerberBoard() {
 	}
 
 
-	public static class Circle{
+	public static class Circle implements IShape{
 		public int x;
 		public int y;
 		public int diameter;
@@ -35,10 +38,15 @@ public class GerberBoard implements IGerberBoard{
 			this.y = y;
 			this.diameter = diameter;
 		}
+
+		@Override
+		public Rectangle getBounds() {
+			return new Rectangle(x,y,diameter,diameter);
+		}
 	
 	}
 
-	public static class Rect{
+	public static class Rect implements IShape{
 		public int x;
 		public int y;
 		public int width;
@@ -49,6 +57,11 @@ public class GerberBoard implements IGerberBoard{
 			this.y = y;
 			this.width = width;
 			this.height = height;
+		}
+
+		@Override
+		public Rectangle getBounds() {
+			return new Rectangle(x,y,width,height);
 		}
 	}
 
@@ -268,8 +281,21 @@ public class GerberBoard implements IGerberBoard{
 		public double getK() {
 			return ((double)(starty-endy))/(startx - endx);
 		}
+
+		@Override
+		public Rectangle getBounds() {
+			int minX = Math.min(startx, endx);
+			int minY = Math.min(starty, endy);
+			int maxX = Math.max(startx, endx);
+			int maxY = Math.max(starty, endy);
+			return new Rectangle(minX,minY,maxX - minX,maxY - minY);
+		}
 	}
 
+	public static class GPolygon extends Polygon implements IShape{
+		
+	}
+	
 	public void clear(){
 		operations.clear();
 	}
@@ -290,10 +316,11 @@ public class GerberBoard implements IGerberBoard{
 		this.operations.add(new Rect(x,y,width,height));
 	}
 
-	public void polygon( Polygon p) {
+	@Override
+	public void polygon(IShape p) {
 		this.operations.add(p);
 	}
-
+	
 	public void line( int startx, int starty, int endx, int endy, int thick, boolean inverted) {
 		if(startx == endx && starty == endy) {
 			System.out.println("Worning: line is a point at " +startx + ","+starty +"!");
@@ -301,35 +328,38 @@ public class GerberBoard implements IGerberBoard{
 			this.operations.add(new Line(startx,starty,endx,endy,thick));
 	}
 
-	private void findDimensions(int border) {
-		int highX = 0;
-		int highY = 0;
-
-		for (Object o: operations) {
-			if (o instanceof Circle) {
-				Circle c = (Circle)o;
-				int xmax = c.x+c.diameter;
-				if (xmax > highX) highX = xmax;
-				int ymax = c.y+c.diameter;
-				if (ymax > highY) highY = ymax;
-
-			} else 
-			if (o instanceof Rect) {
-				Rect r = (Rect)o;
-				int xmax = r.x+r.width;
-				if (xmax > highX) highX = xmax;
-				int ymax = r.y+r.height;
-				if (ymax > highY) highY = ymax;
+	public Rectangle initClip() {
+		if(this.imgw == 0 && this.imgh == 0) {
+			int highX = 0;
+			int highY = 0;
+			int lowX = Integer.MAX_VALUE;
+			int lowY = Integer.MAX_VALUE;
+	
+			for (IShape o: operations) {
+	//			if(o instanceof Line)
+	//				continue;
+				Rectangle c = o.getBounds();
+				highX = Math.max(c.x + c.width, highX);
+				highY = Math.max(c.y + c.height, highY);
+				lowX = Math.min(c.x, lowX);
+				lowY = Math.min(c.y, lowY);
 			}
-
+			
+			this.imgw = highX - lowX;
+			this.imgh = highY - lowY;
+			this.imgx = lowX;
+			this.imgy = lowY;
 		}
-
-		if (imgw == 0 && imgh == 0) {
-			this.imgw = highX + 2 * border;
-			this.imgh = highY + 2 * border;
-		}	
+		return new Rectangle(this.imgx,this.imgy,this.imgw,this.imgh);
 	}
 
+	public void setClip(int x, int y, int w, int h) {
+		this.imgx = x;
+		this.imgy = y;
+		this.imgw = w;
+		this.imgh = h;
+	}
+	
 	private void sortAndMerge(SortedArray sortedArea, SortedArray linePoints) {
 		int bw = this.imgw / 10;
 		int bh = this.imgw /10;
@@ -344,11 +374,10 @@ public class GerberBoard implements IGerberBoard{
 				Rect r = (Rect)o;
 				EndPoint p = new EndPoint(o,r.x,r.y, bw,bh);
 				sortedArea.add(p);
-			}else if(o instanceof Polygon) {
-				Polygon pl = (Polygon)o;
+			}else if(o instanceof GPolygon) {
+				GPolygon pl = (GPolygon)o;
 				EndPoint p = new EndPoint(o,pl.xpoints[0],pl.ypoints[0], bw,bh);
 				sortedArea.add(p);
-//				System.out.println("paint Polygon:" + s);
 			}else if(o instanceof Line) {
 				Line l = (Line)o;
 				sortLinesWithEndPoints(linePoints,l);
@@ -572,19 +601,25 @@ public class GerberBoard implements IGerberBoard{
 
 		}
 	}
+	public void paintLocating(IGraphics g2d) {
+		initClip();
+		g2d.initGraphics(this.imgx,this.imgy,this.imgw, this.imgh);
+		
+		g2d.drawLocatingHole(this.locHole);
+		g2d.dispose();
+	}
 
 	public void paint(IGraphics g2d) {
-		findDimensions(g2d.getBorder());
+		initClip();
 		System.out.println("Found dimensions imgw: "+this.imgw+" imgh: "+this.imgh );
-		g2d.initGraphics(this.imgw, this.imgh);
-		g2d.paintBackGround();
+		g2d.initGraphics(this.imgx,this.imgy,this.imgw, this.imgh);
 		SortedArray sortedArea = new SortedArray();
 		SortedArray linePoints = new SortedArray();
 		ArrayList<PolyLine> polylines = new ArrayList<>();
 
 		sortAndMerge(sortedArea,linePoints);
 		createPolyLines(linePoints, polylines);
-		
+		g2d.drawLocatingHole(this.locHole);
 		this.paintAreas(g2d, sortedArea);
 		this.paintPolylines(g2d, polylines);
 //		oldPaint(g2d);
@@ -594,4 +629,5 @@ public class GerberBoard implements IGerberBoard{
 //		operations.clear();
 		g2d.dispose();
 	}
+
 }

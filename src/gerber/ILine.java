@@ -1,6 +1,6 @@
 package gerber;
 
-public interface ILine {
+public interface ILine extends IShape{
 	public int getStartX();
 	public int getStartY();
 	public int getEndX();

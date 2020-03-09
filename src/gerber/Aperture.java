@@ -1,8 +1,9 @@
 //import java.awt.*;
 package gerber;
 
-import java.awt.Polygon;
 import java.awt.geom.Point2D;
+
+import gerber.GerberBoard.GPolygon;
 
 public class Aperture {
 
@@ -127,7 +128,7 @@ class PolygonAperture extends Aperture{
 	}
 
 	public void draw(IGerberBoard myg, int x, int y, boolean inverted) {
-		Polygon p = new Polygon();
+		GPolygon p = new GPolygon();
 //		String s = "";
 		for(int i = 0;i< polys.length;i++) {
 //			s += "("+polys[i].getX() +","+polys[i].getY()+")"; 

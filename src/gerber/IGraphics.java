@@ -6,14 +6,12 @@ import java.awt.Polygon;
 import java.awt.Stroke;
 
 public interface IGraphics {
-	public void initGraphics(int w,int h);
+	public void initGraphics(int x, int y, int w,int h);
 	public int getPPI();
 	public int getBorder();
-	public boolean isNegative();
 	public void dispose();
 	public void setColor(Color c);
 	public void setGraphics(Graphics2D g);
-	public void paintBackGround();
 	public void fillOval(int x, int y, int width, int height);
 	public void fillRect(int x, int y, int width, int height);
 	public void fillPolygon(Polygon p);
@@ -21,4 +19,5 @@ public interface IGraphics {
 	public void setStroke(Stroke s);
 	public void drawLine(int x1, int y1, int x2, int y2);
 	public void drawPolyLine(IPolyLine pl);
+	public void drawLocatingHole(double diameter);
 }

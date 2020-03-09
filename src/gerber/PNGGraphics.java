@@ -23,22 +23,18 @@ import javax.imageio.stream.ImageOutputStream;
 public class PNGGraphics extends FileGraphics {
 	private BufferedImage image;
 	
-	public PNGGraphics(String filename,int ppi,int border, boolean negative) {
-		super(filename, ppi,border,negative);
+	public PNGGraphics(String filename,int ppi,double border) {
+		super(filename, ppi,border);
 	}
 	
 	@Override
-	public void initGraphics(int w, int h) {
-		super.initGraphics(w, h);
-		newImageFile(w,h);
+	public void initGraphics(int x, int y,int w, int h) {
+		super.initGraphics(x,y,w, h);
+		newImageFile(this.clipWidth + border*2,this.clipHeight+border*2);
 	}
 	
 	@Override
 	public void dispose() {
-		if (negative) {
-			Functions.floodFill(image, new Point(0, 0), Color.black);
-		}	
-
 		saveImageFile(filename, ppi);
 	}
 

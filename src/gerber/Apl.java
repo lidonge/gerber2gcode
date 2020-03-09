@@ -11,6 +11,7 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.FlatteningPathIterator;
@@ -514,22 +515,34 @@ public class Apl {
 			System.out.println("Error (7): "+e);
 		}	
 	}
-	public void drawAndWritePen(String filename, int ppi, int border, boolean negative) {
-		GCodeGraphics pngGraphic = new GCodeGraphics(filename,ppi,border, negative);
-		gerberBoard.paint(pngGraphic);
+	
+	public void drawAndWritePen(String filename, int ppi, double border) {
+		GCodeGraphics penGraphic = new GCodeGraphics(filename+".nc",ppi,border);
+		gerberBoard.paint(penGraphic);
+		
+		GCodeGraphics locating = new GCodeGraphics(filename+"_lc.nc",ppi,border);
+		gerberBoard.paintLocating(locating);	
 	}
 
 	public void drawAndWritePen( String pen) {
-		drawAndWritePen(pen, this.ppi, 0, false); 		
+		drawAndWritePen(pen, this.ppi, 0.1); 		
 	}
 	
-	public void drawAndWritePNG(String filename, int ppi, int border, boolean negative) {
-		PNGGraphics pngGraphic = new PNGGraphics(filename,ppi,border, negative);
+	public void drawAndWritePNG(String filename, int ppi, double border) {
+		PNGGraphics pngGraphic = new PNGGraphics(filename+".png",ppi,border);
 		gerberBoard.paint(pngGraphic);
 	}
+	
+	public Rectangle initClip() {
+		return gerberBoard.initClip();
+	}
 
+	public void setClip(int x, int y,int w, int h) {
+		gerberBoard.setClip(x,y,w, h);
+	}
+	
 	public void drawAndWritePNG( String png) {
-		drawAndWritePNG(png, this.ppi, 0, false); 		
+		drawAndWritePNG(png, this.ppi, 0.1); 		
 	}
 	
 	public void drawFrame() {
@@ -539,7 +552,7 @@ public class Apl {
 //		this.ppi = frame.getToolkit().getScreenResolution();		
 		JPanel pane = new JPanel() {
 //			this.ppi = this.getToolkit().getScreenResolution();
-			FileGraphics fg = new FileGraphics("",ppi,0, false) {
+			FileGraphics fg = new FileGraphics("",ppi,0) {
 			};
 			public void paint(Graphics g) {
 				fg.setGraphics((Graphics2D) g);
@@ -555,9 +568,25 @@ public class Apl {
 	}
 	
 	public static void main(String[] args) {
-		Apl apl = new Apl(args[0]);
+		String gtl = args[0]+".gtl";
+		String gbl = args[0]+".gbl";
+		Apl apl_gtl = new Apl(gtl);
+		Apl apl_gbl = new Apl(gbl);
+		
+		Rectangle dtl = apl_gtl.initClip();
+		Rectangle dbl = apl_gbl.initClip();
+		int maxW = Math.max(dtl.width, dbl.width);
+		int maxH = Math.max(dtl.height, dbl.height);
+		int minx = Math.min(dtl.x, dbl.x);
+		int miny = Math.min(dtl.y, dbl.y);
+		apl_gtl.setClip(minx, miny, maxW, maxH);
+		apl_gbl.setClip(minx, miny,maxW, maxH);
+		
 //		apl.drawFrame();
-		apl.drawAndWritePNG(args[0]+".png");
-		apl.drawAndWritePen(args[0]+".nc");
+		apl_gtl.drawAndWritePNG(gtl);
+		apl_gbl.drawAndWritePNG(gbl);
+		
+		apl_gtl.drawAndWritePen(gtl);
+		apl_gbl.drawAndWritePen(gbl);
 	}
 }
