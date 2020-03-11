@@ -19,20 +19,20 @@ public class Group extends GAction implements IGroupAction {
 	private static final int ADDING_END = 2;
 
 	private int statue = ADDING_BEG;
-	@Override
-	public IAction[] getBegins() {
-		return (IAction[]) begins.toArray();
-	}
-
-	@Override
-	public IXYAction[] getPolygon() {
-		return (IXYAction[]) polygon.toArray();
-	}
-
-	@Override
-	public IAction[] getEnds() {
-		return (IAction[]) ends.toArray();
-	}
+//	@Override
+//	public IAction[] getBegins() {
+//		return (IAction[]) begins.toArray();
+//	}
+//
+//	@Override
+//	public IXYAction[] getPolygon() {
+//		return (IXYAction[]) polygon.toArray();
+//	}
+//
+//	@Override
+//	public IAction[] getEnds() {
+//		return (IAction[]) ends.toArray();
+//	}
 	
 	public void add(IAction act) {
 		switch(statue) {

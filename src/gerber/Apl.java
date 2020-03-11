@@ -1,9 +1,12 @@
 package gerber;
 import java.io.*;
+import java.text.ParseException;
 import java.util.*;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+
+import tools.ConfigTool;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -12,6 +15,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
+import java.awt.Shape;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.FlatteningPathIterator;
@@ -20,20 +24,13 @@ import java.awt.geom.Point2D;
 public class Apl {
 
 	// GLOBAL OUTPUT SETTINGS
-	private	String dir = "/home/daveg/Electronics/relay-clock/plots/";
-	private	String project = "relay-clock";
-
-	private boolean process_F_Cu = false;
-	private boolean process_B_Cu = true;
-	private boolean process_NPTH = false;
+	private static final String CONF_FILE = "./aplgcode.conf";
 
 	private int ppi = 1000; 		// pixels per inch
-	private double border_mm = 1; 	// mm border around entire image
 	
 	// ==============================
 	private double scale = 1; // 1 for mm
 	private double step = 1; // subpixel stepping 0.5
-	private int border = (int)Math.round(border_mm/25.4*ppi); // pixel border around entire image
 	private boolean single_quadrant = false;
 	private GerberBoard gerberBoard = new GerberBoard();
 	private int linenumber = 0;
@@ -41,10 +38,14 @@ public class Apl {
 	private Aperture aperture = null;
 	private HashMap<Integer,Aperture> tools = new HashMap<Integer,Aperture>();
 	private Aperture tool = null;
-	private Point2D.Double lastPoint = new Point2D.Double(0,0);
+	private String macroName = null;
+	private int g_integer = 2, g_decimal = 5;
+	private int d_integer = 2, d_decimal = 5;
 	
 	private boolean bLeadZero = false;
 	private HashMap<String, Aperture> macros = new HashMap<>();
+	private String gerberFile, drillFile;
+	private boolean mirroVertical, mirroHorizontal;
 	
 	public void addMacro(String name, String line) {
 		StringTokenizer st = new StringTokenizer(line,",");
@@ -151,6 +152,7 @@ public class Apl {
 		System.out.println("modifier 3:"+modarray[3]);
 		
 		Aperture a = new Aperture(this.ppi, "C", modarray);
+		a.drillTool = n;
 		this.tools.put(new Integer(n), a);
 	}
 			
@@ -184,72 +186,61 @@ public class Apl {
 			dpos = line.indexOf("D");
 		}
 		int x=-1,y=-1;
+		Point p = readXY(line, xpos,ypos,dpos,g_integer,g_decimal);
+		x = p.x;
+		y = p.y;
+//		System.out.println("draw line :" +line +"====" + x + ","+y);
+		if (line.endsWith("D01*")) { // move with shutter OPEN
+			// make a path from lastPoint to x,y
+			this.aperture.drawLine(this.gerberBoard, lastX, lastY, x,y);				
+			this.lastD = "D01*";
+		}
+		if (line.endsWith("D02*")) { // move with shutter CLOSED
+			this.lastD = "D02*";
+		}
+		if (line.endsWith("D03*")) { // flash
+			this.aperture.draw(this.gerberBoard, x, y);
+			this.lastD = "D03*";
+		}
+		lastX = x;
+		lastY = y;
+	}
+	
+	private Point readXY(String line, int xpos, int ypos, int dpos, int integer, int decimal) {
+		
+		int x=-1,y=-1;
+		int len = integer + decimal;
 		
 		if(xpos != -1){
 			String xstr = line.substring(xpos+1, ypos == -1 ? dpos : ypos);
 			// add leading zeroes
-			while (xstr.length() < 7) {
+			while (xstr.length() < len) {
 				if(bLeadZero)
 					xstr = "0"+xstr;
 				else
 					xstr = xstr + "0";
 			}
 			// add decimal point
-			xstr = xstr.substring(0, 3) + "." + xstr.substring(3);
+			xstr = xstr.substring(0, integer) + "." + xstr.substring(integer);
 			x = (int)Math.round(Double.valueOf(xstr)*(double)this.ppi);
 		}else
 			x = this.lastX;
 		
 		if(ypos != -1) {
 			String ystr = line.substring(ypos+1, dpos);
-			while (ystr.length() < 7) {
+			while (ystr.length() < len) {
 				if(bLeadZero)
 					ystr = "0"+ystr;
 				else
 					ystr = ystr + "0";
 			}
-			ystr = ystr.substring(0, 3) + "." + ystr.substring(3);
+			ystr = ystr.substring(0, integer) + "." + ystr.substring(integer);
 			y = (int)Math.round(Double.valueOf(ystr)*(double)this.ppi);
 		}else
 			y = this.lastY;
-		
-//		System.out.println("draw line :" +line +"====" + x + ","+y);
-		if (line.endsWith("D01*")) { // move with shutter OPEN
-			// make a path from lastPoint to x,y
-			if(true) {
-				this.aperture.drawLine(this.gerberBoard, lastX, lastY, x,y);				
-			}else {
-				double distance = Functions.getDistance(lastPoint, x, y);
-				while(distance > this.step) {
-					Point2D.Double next = Functions.calcStep(lastPoint, x, y, this.step);
-									
-					int xx = (int)Math.round(next.x);
-					int yy = (int)Math.round(next.y);
-					this.aperture.draw(this.gerberBoard, xx, yy);
-					this.lastPoint.x = next.x;
-					this.lastPoint.y = next.y;
-									
-					distance = Functions.getDistance(lastPoint, x, y);
-					//System.out.println("distance: "+distance);
-				}
-			}
-			this.lastD = "D01*";
-		}
-		if (line.endsWith("D02*")) { // move with shutter CLOSED
-			this.lastPoint.x = x;
-			this.lastPoint.y = y;
-			this.lastD = "D02*";
-		}
-		if (line.endsWith("D03*")) { // flash
-			this.aperture.draw(this.gerberBoard, x, y);
-			this.lastPoint.x = x;
-			this.lastPoint.y = y;
-			this.lastD = "D03*";
-		}
-		lastX = x;
-		lastY = y;
+		return new Point(x,y);
 	}
-
+	
 	private int parseValue(String s) {
 		boolean negative = false;
 		// strip minus signs
@@ -296,10 +287,10 @@ public class Apl {
 		
 		System.out.println("Arc: "+x+", "+y+", "+i+", "+j);
 
-		int centerx = (int)this.lastPoint.x + i;
-		int centery = (int)this.lastPoint.y + j;
+		int centerx = (int)this.lastX + i;
+		int centery = (int)this.lastY + j;
 		
-		double radius = Functions.getDistance(lastPoint, centerx, centery);
+		double radius = Functions.getDistance(lastX, lastY, centerx, centery);
 		double arcResolution = 0.00175;
 		
 		System.out.println("Circle at: ["+centerx+", "+centery+"] Radius:"+radius);
@@ -317,58 +308,30 @@ public class Apl {
 				int yy = (int)Math.round(centery + radius * Math.sin(angle));
 
 				this.aperture.draw(this.gerberBoard, xx, yy);
-				this.lastPoint.x = xx;
-				this.lastPoint.y = yy;
+				this.lastX = xx;
+				this.lastY = yy;
 			
 				angle = angle - arcResolution;
 			}
 		}
 	}
-	
-	
-	public void drill(String line) {
-		int xpos = line.indexOf("X");
-		int ypos = line.indexOf("Y");
-		String xstr = line.substring(xpos+1, ypos);
-		String ystr = line.substring(ypos+1);
+	private void readIntegerAndDecmal(String line) {
+		int idx = line.indexOf('X');//fix me, forget diff of x and y
 		
-		if (ystr.startsWith("-")) { 
-			ystr = ystr.substring(1);
-		}
-		
-		// add leading zeroes
-		while (xstr.length() < 6) {
-			xstr = "0"+xstr;
-		}
-		while (ystr.length() < 6) {
-			ystr = "0"+ystr;
-		}
-
-		// add decimal point
-		xstr = xstr.substring(0, 2) + "." + xstr.substring(2);
-		ystr = ystr.substring(0, 2) + "." + ystr.substring(2);
-		//System.out.println("xstr:"+xstr);
-		//System.out.println("ystr:"+xstr);
-				
-		int x = (int)Math.round(Double.valueOf(xstr)*(double)this.ppi);
-		int y = (int)Math.round(Double.valueOf(ystr)*(double)this.ppi);
-				
-		y = Math.abs(y); // invert
-		
-		this.tool.draw(this.gerberBoard, x, y, true);
-		this.lastPoint.x = x;
-		this.lastPoint.y = y;
+		g_integer = Integer.parseInt(line.charAt(idx + 1) +"");
+		g_decimal = Integer.parseInt(line.charAt(idx+2)+"");
 	}
-	private String macroName = null;
 	public boolean processGerber(String line) {
 		this.linenumber++;
 		
 		line = line.trim().toUpperCase();
 		if (line.startsWith("%FS")) {
 			System.out.println("got format definition! line "+this.linenumber);
-			if (line.equals("%FSTAX34Y34*%")) {
+			if (line.startsWith("%FSTA")) {
+				readIntegerAndDecmal(line);
 				bLeadZero = false;
-			}else if (line.equals("%FSLAX34Y34*%")) {
+			}else if (line.equals("%FSLA")) {
+				readIntegerAndDecmal(line);
 				bLeadZero = true;
 			}else {
 				System.out.println("wrong format definition! STOPPING...");
@@ -422,8 +385,22 @@ public class Apl {
 		return false;
 	}
 
-	
-	
+	public void drill(String line) {
+		int xpos = line.indexOf("X");
+		int ypos = line.indexOf("Y");
+		int dpos = line.length();
+		int x, y;
+		Point p = readXY(line, xpos,ypos,dpos, d_integer,d_decimal);
+		x = p.x;
+		y = p.y;
+				
+//		y = Math.abs(y); // invert
+		
+		this.tool.draw(this.gerberBoard, x, y, true);
+		this.lastX = x;
+		this.lastY = y;
+	}
+
 	public boolean processDrill(String line) {
 		
 		this.linenumber++;
@@ -447,7 +424,7 @@ public class Apl {
 			return true;
 		}
 		
-		if (line.startsWith("X")) {
+		if (line.startsWith("X")|| line.startsWith("Y")) {
 			drill(line);
 		}
 
@@ -515,21 +492,103 @@ public class Apl {
 			System.out.println("Error (7): "+e);
 		}	
 	}
-	
-	public void drawAndWritePen(String filename, int ppi, double border) {
-		GCodeGraphics penGraphic = new GCodeGraphics(filename+".nc",ppi,border);
-		gerberBoard.paint(penGraphic);
-		
-		GCodeGraphics locating = new GCodeGraphics(filename+"_lc.nc",ppi,border);
-		gerberBoard.paintLocating(locating);	
+	public boolean initDrill() {
+		boolean ret = false;
+		if(this.drillFile != null) {
+			gerberBoard.clear();
+			processDrillFile(drillFile);
+			ret = true;
+		}
+		return ret;
 	}
 
-	public void drawAndWritePen( String pen) {
-		drawAndWritePen(pen, this.ppi, 0.1); 		
+	public void drillHole(String filename, int ppi) {
+		CNCCarvingPainter cnc = new CNCCarvingPainter(filename+"_drl.nc",ppi, mirroVertical, mirroHorizontal);
+		cnc.setStroke(new ICNCStroke() {
+
+			@Override
+			public Shape createStrokedShape(Shape p) {
+				return null;
+			}
+
+			@Override
+			public int getDrillTool() {
+				return 0;
+			}
+
+			@Override
+			public double getToolSize() {
+				return 0.08;
+			}
+
+			@Override
+			public double getDeepth() {
+				return ConfigTool.getInstance().drillDeepth;
+			}
+			
+		});
+		gerberBoard.paint(cnc);	
+
+	}
+
+	public void drillHole( String filename) {
+		drillHole(filename, this.ppi); 		
+	}
+
+	public void drillLocatingHole(String filename, int ppi) {
+		CNCCarvingPainter cnc = new CNCCarvingPainter(filename+"_drl_lc.nc",ppi, mirroVertical, mirroHorizontal);
+		cnc.setStroke(new ICNCStroke() {
+
+			@Override
+			public Shape createStrokedShape(Shape p) {
+				return null;
+			}
+
+			@Override
+			public int getDrillTool() {
+				return 0;
+			}
+
+			@Override
+			public double getToolSize() {
+				return 0.08;
+			}
+
+			@Override
+			public double getDeepth() {
+				return ConfigTool.getInstance().locating_hole_deepth;
+			}
+			
+		});
+		gerberBoard.paintLocating(cnc);	
+
+	}
+
+	public void drillLocatingHole( String filename) {
+		drillLocatingHole(filename, this.ppi); 		
 	}
 	
-	public void drawAndWritePNG(String filename, int ppi, double border) {
-		PNGGraphics pngGraphic = new PNGGraphics(filename+".png",ppi,border);
+	public void drawAndWritePen(String filename, int ppi) {
+		AxiDrawPainter penGraphic = new AxiDrawPainter(filename+".nc",ppi, mirroVertical, mirroHorizontal);
+		gerberBoard.paint(penGraphic);
+	}
+
+	public void drawAndWritePen( String filename) {
+		drawAndWritePen(filename, this.ppi); 		
+	}
+	
+	public void drawLocatingHole(String filename, int ppi) {
+		AxiDrawPainter locating = new AxiDrawPainter(filename+"_lc.nc",ppi, mirroVertical, mirroHorizontal);
+		gerberBoard.paintLocating(locating);	
+
+	}
+
+	public void drawLocatingHole( String filename) {
+		drawLocatingHole(filename, this.ppi); 		
+	}
+
+	public void drawAndWritePNG(String filename, int ppi) {
+		PNGPainter pngGraphic = new PNGPainter(filename+".png",ppi, mirroVertical, mirroHorizontal);
 		gerberBoard.paint(pngGraphic);
 	}
 	
@@ -542,7 +601,7 @@ public class Apl {
 	}
 	
 	public void drawAndWritePNG( String png) {
-		drawAndWritePNG(png, this.ppi, 0.1); 		
+		drawAndWritePNG(png, this.ppi); 		
 	}
 	
 	public void drawFrame() {
@@ -552,7 +611,7 @@ public class Apl {
 //		this.ppi = frame.getToolkit().getScreenResolution();		
 		JPanel pane = new JPanel() {
 //			this.ppi = this.getToolkit().getScreenResolution();
-			FileGraphics fg = new FileGraphics("",ppi,0) {
+			GerberPainter fg = new GerberPainter("",ppi, mirroVertical, mirroHorizontal) {
 			};
 			public void paint(Graphics g) {
 				fg.setGraphics((Graphics2D) g);
@@ -563,16 +622,15 @@ public class Apl {
 //		pane.setSize(600, 800);
 		frame.show();
 	}
-	public Apl(String gerber) {
+	public Apl(String gerber, String drill, boolean mirroVertical, boolean mirroHorizontal) {
+		this.gerberFile = gerber;
+		this.drillFile = drill;
+		this.mirroVertical = mirroVertical;
+		this.mirroHorizontal = mirroHorizontal;
+		this.ppi = ConfigTool.getInstance().ppi;
 		processGerberFile(gerber);
 	}
-	
-	public static void main(String[] args) {
-		String gtl = args[0]+".gtl";
-		String gbl = args[0]+".gbl";
-		Apl apl_gtl = new Apl(gtl);
-		Apl apl_gbl = new Apl(gbl);
-		
+	private static void dealWithGerber(String gtl,String gbl,Apl apl_gtl,Apl apl_gbl) {
 		Rectangle dtl = apl_gtl.initClip();
 		Rectangle dbl = apl_gbl.initClip();
 		int maxW = Math.max(dtl.width, dbl.width);
@@ -584,9 +642,171 @@ public class Apl {
 		
 //		apl.drawFrame();
 		apl_gtl.drawAndWritePNG(gtl);
-		apl_gbl.drawAndWritePNG(gbl);
+		if(apl_gbl != null)
+			apl_gbl.drawAndWritePNG(gbl);
 		
 		apl_gtl.drawAndWritePen(gtl);
-		apl_gbl.drawAndWritePen(gbl);
+		if(apl_gbl != null) {
+			apl_gbl.drawAndWritePen(gbl);
+		}
+		
+		apl_gtl.drawLocatingHole(gtl);
+		
+		if(apl_gtl.initDrill()) {
+			apl_gtl.drillLocatingHole(gtl);
+			apl_gtl.drillHole(gtl);
+		}
+	}
+	
+	private static void initConf(String conf, HashMap<String, String> map) throws IOException, ParseException {
+		File f = new File(conf);
+		System.out.println("Read config file :" + f.getAbsolutePath());
+		FileReader reader = new FileReader(conf);
+		BufferedReader in = new BufferedReader(reader);
+		String line;
+		while((line = in.readLine()) != null) {
+			line = line.trim();
+			if(line.length() == 0 || line.startsWith("#"))
+				continue;
+			int idx = line.indexOf('=');
+			if(idx != -1) {
+				String content = line.substring(0, idx).trim();
+				map.put(content, line.substring(idx+1).trim());
+			}
+		}
+		reader.close();
+	}
+	private static String[] parseCmd(String sCmd) {
+		String[] ret = null;
+		int idx = sCmd.indexOf('=');
+		if(idx != -1) {
+			String cmd = sCmd.substring(0, idx);
+			String value = sCmd.substring(idx+1);
+			ret = new String[]{cmd,value};
+		}
+		return ret;
+	}
+	
+	private static void help() {
+		System.out.println("======================help=================");
+		System.out.println("java -jar aplgcode.jar <-h> <cmd=arg>...");
+		System.out.println("\t\"drillfile\" specify the drill file path.");
+		
+		System.out.println("genconf=<default> | <filepath> to generate a default config file by name of ./aplgcode.conf or the given filepath.");
+		System.out.println("gbr=<gerber file name(without suffix)>.");
+		System.out.println("\t\"gerber file name\" is the prefix of the input and output files.");
+		System.out.println("\t\"gerber file name\".gtl is the input of top layer file.");
+		System.out.println("\t\"gerber file name\".gbl is the input of botttom layer file.");
+		System.out.println("drl=<drill file path>.");
+		System.out.println("\t\"drill file path\" specify the drill file path.");
+		System.out.println("conf=<filepath> specify the config file.");
+
+		System.out.println("===========================================");
+	}
+	private static void genDefaultConf(String conf) {
+		try {
+			FileWriter writer = new FileWriter(conf);
+			BufferedWriter out = new BufferedWriter(writer);
+			out.write("#using inch					");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#general parameters          ");out.newLine();
+			out.write("ppi=1000                     ");out.newLine();
+			out.write("border=0.1                   ");out.newLine();
+			out.write("mirroVertical_gtl = false    ");out.newLine();
+			out.write("mirroHorizontal_gtl = false  ");out.newLine();
+			out.write("mirroVertical_gbl = false    ");out.newLine();
+			out.write("mirroHorizontal_gbl = false  ");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#locating hole               ");out.newLine();
+			out.write("locating_hole_size=0.06      ");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#drill tools                 ");out.newLine();
+			out.write("drillSafeDeepth=10           ");out.newLine();
+			out.write("downSpeed=1200               ");out.newLine();
+			out.write("drillSpeed=200               ");out.newLine();
+			out.write("drillDeepth=-0.04            ");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#drill file config           ");out.newLine();
+			out.write("drill_integer=2              ");out.newLine();
+			out.write("drill_decimal=5              ");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#gerber file config          ");out.newLine();
+			out.write("gerber_integer=2             ");out.newLine();
+			out.write("gerber_decimal=5             ");out.newLine();
+			out.write("                             ");out.newLine();
+			out.write("#pen config                  ");out.newLine();
+			out.write("penDim = 0.02                ");out.newLine();
+			out.write("overPen = 0.2                ");out.newLine();
+			out.write("defaultSpeed = 3000          ");out.newLine();
+			out.write("lineSpeed = 100              ");out.newLine();
+			out.close();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	public static void main(String[] args) {
+		if(args.length == 0 || "-h".equalsIgnoreCase(args[0])) {
+			help();
+			return;
+		}
+		String conf = CONF_FILE;
+		String gerber = null;
+		String drill = null;
+		for(int i = 0;i<args.length;i++) {
+			String[] cmd = parseCmd(args[i]);
+			if(cmd == null)
+				continue;
+			if("genconf".equalsIgnoreCase(cmd[0])) {
+				String cfg = "default".equalsIgnoreCase(cmd[1]) ? CONF_FILE : cmd[1];
+				System.out.println("Generate default config file:" + cfg);
+				genDefaultConf(cfg);
+				return;
+			}else if("conf".equalsIgnoreCase(cmd[0])) {
+				conf = cmd[1];
+			}else if("gbr".equalsIgnoreCase(cmd[0])) {
+				gerber = cmd[1];
+			}else if("drl".equalsIgnoreCase(cmd[0])) {
+				drill = cmd[1];
+			}
+		}
+		if(gerber == null) {
+			System.out.println("Error: Gerber file should not be null!");
+			help();
+			return;
+		}
+		if(drill == null) {
+			System.out.println("Worning: Drill file is null!");
+		}else {
+			File fDrill = new File(drill);
+			if(!fDrill.exists()) {
+				System.out.println("Worning: Drill file " + fDrill.getAbsolutePath() + " does not exists!");
+				drill = null;
+			}
+		}
+		File gtl = new File(gerber+".gtl");
+		File gbl = new File(gerber+".gbl");
+		
+		if(!gtl.exists()) {
+			System.out.println("Error: Gerber file " + gtl.getAbsolutePath() + " does not exists!");
+			return;
+		}
+		HashMap<String, String> configs = new HashMap<String, String>();
+		try {
+			initConf(conf, configs);
+			System.out.println(configs);
+			ConfigTool.getInstance().init(configs);
+		} catch (IOException | ParseException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		Apl apl_gtl = new Apl(gtl.getAbsolutePath(), drill, ConfigTool.getInstance().mirroVertical_gtl,ConfigTool.getInstance().mirroHorizontal_gtl);
+		Apl apl_gbl = null;
+		if(gbl.exists()) {
+			apl_gbl = new Apl(gbl.getAbsolutePath(), drill, ConfigTool.getInstance().mirroVertical_gbl,ConfigTool.getInstance().mirroHorizontal_gbl);
+		}else {
+			System.out.println("Worning: Gerber file " + gbl.getAbsolutePath() + " does not exists!");
+		}
+		dealWithGerber(gtl.getAbsolutePath(),gbl.getAbsolutePath(),apl_gtl,apl_gbl);
 	}
 }

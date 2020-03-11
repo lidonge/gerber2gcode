@@ -52,15 +52,15 @@ public class Functions {
 		return Math.sqrt( Math.pow((double)(maxx-minx),2) + Math.pow((double)(maxy-miny),2) );
 	}
 
-	public static double getDistance(Point2D.Double p1, int x2, int y2) {
-		double maxx = Math.max(p1.x, x2);
-		double minx = Math.min(p1.x, x2);
-		double maxy = Math.max(p1.y, y2);
-		double miny = Math.min(p1.y, y2);
-		
-		return Math.sqrt( Math.pow(maxx-minx,2) + Math.pow(maxy-miny,2) );
-	}
-	
+//	public static double getDistance(Point2D.Double p1, int x2, int y2) {
+//		double maxx = Math.max(p1.x, x2);
+//		double minx = Math.min(p1.x, x2);
+//		double maxy = Math.max(p1.y, y2);
+//		double miny = Math.min(p1.y, y2);
+//		
+//		return Math.sqrt( Math.pow(maxx-minx,2) + Math.pow(maxy-miny,2) );
+//	}
+//	
 	public static void floodFill(BufferedImage image, Point node, Color replacementColor) {
 		int width = image.getWidth();
 		int height = image.getHeight();

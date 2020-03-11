@@ -7,6 +7,7 @@ import javax.imageio.*;
 import javax.imageio.metadata.*;
 import javax.imageio.stream.*;
 
+import tools.ConfigTool;
 import tools.IComparable;
 import tools.IGeoComparable;
 import tools.SortedArray;
@@ -24,6 +25,7 @@ public class GerberBoard implements IGerberBoard{
 	private LinkedList<IShape> operations = new LinkedList<>();
 
 	public GerberBoard() {
+		locHole = ConfigTool.getInstance().locHole;
 	}
 
 
@@ -32,6 +34,8 @@ public class GerberBoard implements IGerberBoard{
 		public int y;
 		public int diameter;
 		public boolean inverted = false;
+		public int drillTool = 0;
+		public double toolSize;
 	
 		public Circle(int x, int y, int diameter) {
 			this.x = x;
@@ -113,6 +117,34 @@ public class GerberBoard implements IGerberBoard{
 		@Override
 		public int compareTo(Object target) {
 			EndPoint p = (EndPoint)target;
+			return ConfigTool.getInstance().paint_vertical ? compareVertical(p):compareHorizontal(p);
+		}
+		
+		private int compareVertical(EndPoint p) {
+			int ret = 0;
+			if(block.x > p.block.x) {
+				ret = 1;
+			}else if(block.x < p.block.x) {
+				ret = -1;
+			}else if(block.y > p.block.y) {
+				ret = 1;
+			}else if(block.y < p.block.y) {
+				ret = -1;
+			}else {
+				if(y > p.y) {
+					ret = 1;
+				}else if(y < p.y) {
+					ret = -1;
+				}else if(x > p.x) {
+					ret = 1;
+				}else if(x < p.x) {
+					ret = -1;
+				}
+			}
+			return ret;
+		}
+	
+		private int compareHorizontal(EndPoint p) {
 			int ret = 0;
 			if(block.y > p.block.y) {
 				ret = 1;
@@ -134,8 +166,8 @@ public class GerberBoard implements IGerberBoard{
 				}
 			}
 			return ret;
+			
 		}
-	
 		@Override
 		public void setBlock(int width, int height) {
 			int px = x / width;
@@ -302,12 +334,14 @@ public class GerberBoard implements IGerberBoard{
 
 
 	public void circle(int x, int y, int diameter){
-		this.operations.add(new Circle(x,y,diameter));
+		this.circle(x, y, -1, 0, diameter, false);
 	}
 
-	public void circle(int x, int y, int diameter, boolean inverted){
+	public void circle(int x, int y, int diameter, int drillTool, double toolSize, boolean inverted){
 		Circle mc = new Circle(x,y,diameter);
 		mc.inverted = inverted;
+		mc.toolSize = toolSize;
+		mc.drillTool = drillTool;
 		this.operations.add(mc);
 	}
 
@@ -361,8 +395,9 @@ public class GerberBoard implements IGerberBoard{
 	}
 	
 	private void sortAndMerge(SortedArray sortedArea, SortedArray linePoints) {
-		int bw = this.imgw / 10;
-		int bh = this.imgw /10;
+		int blk = (int)Math.round(ConfigTool.getInstance().sortblock_dia * ConfigTool.getInstance().ppi);
+		int bw = blk;
+		int bh = blk;
 		
 		for (Object o: operations) {
 			if (o instanceof Circle) {
@@ -424,14 +459,14 @@ public class GerberBoard implements IGerberBoard{
 		return ret;
 	}
 
-	private void paintPolylines(IGraphics g2d,ArrayList<PolyLine> polylines) {
+	private void paintPolylines(IGerberPainter g2d,ArrayList<PolyLine> polylines) {
 		for(int i = 0;i<polylines.size();i++){
 			PolyLine pl = polylines.get(i);
 			this.paintPolyLine(g2d, pl);
 		}
 	}
 	
-	private void paintPolyLine(IGraphics g2d,PolyLine pl) {
+	private void paintPolyLine(IGerberPainter g2d,PolyLine pl) {
 		g2d.drawPolyLine(pl);
 //		for(int j = 0;j<pl.lines.size();j++) {
 //			this.paintLine(g2d, pl.lines.get(j));
@@ -531,7 +566,7 @@ public class GerberBoard implements IGerberBoard{
 		return ret;
 	}
 
-	private void paintAreas(IGraphics g2d,SortedArray sortedArea) {
+	private void paintAreas(IGerberPainter g2d,SortedArray sortedArea) {
 		int size = sortedArea.size();
 		for(int i = 0;i<size;i++) {
 			EndPoint ep = (EndPoint) sortedArea.get(i);
@@ -542,7 +577,7 @@ public class GerberBoard implements IGerberBoard{
 	
 	private static final Color[] colors = new Color[] {Color.red,Color.white, Color.blue,Color.green};
 	private int testCount = 0;
-	private void paintLine(IGraphics g2d, Line l) {
+	private void paintLine(IGerberPainter g2d, Line l) {
 
 		Stroke s = g2d.getStroke();
 		g2d.setStroke(new BasicStroke(l.thick, BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND));
@@ -554,23 +589,17 @@ public class GerberBoard implements IGerberBoard{
 
 	}
 
-	private void paintArea(IGraphics g2d, Object o) {
+	private void paintArea(IGerberPainter g2d, Object o) {
 		if (o instanceof Circle) {
 //			count = (count + 1)%colors.length;
 			Circle c = (Circle)o;
-//			if (c.inverted) {
-//	 			g2d.setColor(Color.black);
-//			}else {
-//				g2d.setColor(Color.white);
-//			}
-			
-//			g2d.fillOval(c.x,c.y +c.diameter, c.diameter, c.diameter);
+
+			if (c.inverted) {
+	 			g2d.setColor(Color.red);
+			}else
+				g2d.setColor(Color.white);
+
 			g2d.fillOval(c.x,c.y, c.diameter, c.diameter);
-
-//			if (c.inverted) {
-//	 			g2d.setColor(Color.white);
-//			}
-
 		} else if (o instanceof Rect) {
 			Rect r = (Rect)o;
 			g2d.fillRect(r.x, r.y, r.width, r.height);
@@ -591,7 +620,7 @@ public class GerberBoard implements IGerberBoard{
 		}	
 	}
 
-	private void oldPaint(IGraphics g2d) {
+	private void oldPaint(IGerberPainter g2d) {
 		for (Object o: operations) {
 			if(o instanceof Line) {
 				Line l = (Line)o;
@@ -601,15 +630,17 @@ public class GerberBoard implements IGerberBoard{
 
 		}
 	}
-	public void paintLocating(IGraphics g2d) {
+	public void paintLocating(IGerberPainter g2d) {
 		initClip();
+//		System.out.println("==============="+ g2d);
+//		System.out.println("" + new Rectangle(this.imgx,this.imgy,this.imgw, this.imgh));
 		g2d.initGraphics(this.imgx,this.imgy,this.imgw, this.imgh);
 		
 		g2d.drawLocatingHole(this.locHole);
 		g2d.dispose();
 	}
 
-	public void paint(IGraphics g2d) {
+	public void paint(IGerberPainter g2d) {
 		initClip();
 		System.out.println("Found dimensions imgw: "+this.imgw+" imgh: "+this.imgh );
 		g2d.initGraphics(this.imgx,this.imgy,this.imgw, this.imgh);

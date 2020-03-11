@@ -14,7 +14,6 @@ public class ZAction extends GAction implements IZAction {
 
 
 	public String toString() {
-		String ret = super.toString();
-		return ret + " Z"+DEC_FMT.format(z);
+		return getType() + ""+DEC_FMT.format(z);
 	}
 }

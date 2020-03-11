@@ -5,7 +5,7 @@ public interface IGerberBoard {
 
 	public void circle(int x, int y, int diameter);
 
-	public void circle(int x, int y, int diameter, boolean inverted);
+	public void circle(int x, int y, int diameter, int drillTool, double toolSize, boolean inverted);
 
 
 	public void rect(int x, int y, int width, int height);

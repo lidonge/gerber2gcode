@@ -6,7 +6,7 @@ public interface IGroupAction extends IAction{
 //	public void addToPolygon(IXYAction act);
 //	
 	public void add(IAction act);
-	public IAction[] getBegins();
-	public IXYAction[] getPolygon();
-	public IAction[] getEnds();
+//	public IAction[] getBegins();
+//	public IXYAction[] getPolygon();
+//	public IAction[] getEnds();
 }
