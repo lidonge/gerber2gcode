@@ -716,15 +716,19 @@ public class Apl {
 			out.write("mirroHorizontal_gtl = false  ");out.newLine();
 			out.write("mirroVertical_gbl = false    ");out.newLine();
 			out.write("mirroHorizontal_gbl = false  ");out.newLine();
+			out.write("paint_vertical=true			");out.newLine();
+			out.write("sortblock_dia=0.04			");out.newLine();
+
 			out.write("                             ");out.newLine();
 			out.write("#locating hole               ");out.newLine();
 			out.write("locating_hole_size=0.06      ");out.newLine();
+			out.write("locating_hole_deepth=-0.08	");out.newLine();
 			out.write("                             ");out.newLine();
 			out.write("#drill tools                 ");out.newLine();
 			out.write("drillSafeDeepth=10           ");out.newLine();
 			out.write("downSpeed=1200               ");out.newLine();
 			out.write("drillSpeed=200               ");out.newLine();
-			out.write("drillDeepth=-0.04            ");out.newLine();
+			out.write("drillDeepth=-0.06            ");out.newLine();
 			out.write("                             ");out.newLine();
 			out.write("#drill file config           ");out.newLine();
 			out.write("drill_integer=2              ");out.newLine();
@@ -738,7 +742,7 @@ public class Apl {
 			out.write("penDim = 0.02                ");out.newLine();
 			out.write("overPen = 0.2                ");out.newLine();
 			out.write("defaultSpeed = 3000          ");out.newLine();
-			out.write("lineSpeed = 100              ");out.newLine();
+			out.write("lineSpeed = 50	            ");out.newLine();
 			out.close();
 			writer.close();
 		} catch (IOException e) {
