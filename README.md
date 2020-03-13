@@ -1,8 +1,6 @@
 # Gerber2GCode
 
-This project is for converting PCB  *gerber* files to *Gcode* files.  It is based on 
-
-[gerber2png]: https://github.com/dgonner/gerber2png
+This project is for converting PCB  *gerber* files to *Gcode* files.  It is based on [gerber2png]: https://github.com/dgonner/gerber2png
 
 for making PCB at home.
 
