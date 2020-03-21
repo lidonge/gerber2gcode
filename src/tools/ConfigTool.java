@@ -23,6 +23,7 @@ public class ConfigTool {
 	public double border;
 	public boolean paint_vertical;
 	public double sortblock_dia;
+	public boolean fixpolygonY = false;
 	// in GerberPainter
 	public boolean mirroVertical_gtl = false;
 	public boolean mirroHorizontal_gtl = false;
@@ -99,7 +100,7 @@ public class ConfigTool {
 	}
 
 	private boolean general(Map.Entry<String, String> e) {
-		boolean ret = true;
+			boolean ret = true;
 		if ("ppi".equalsIgnoreCase(e.getKey())) {
 			ppi = toInt(e.getValue());
 		} else if ("border".equalsIgnoreCase(e.getKey())) {
@@ -124,8 +125,11 @@ public class ConfigTool {
 			paint_vertical = toBoolean(e.getValue());
 		} else if ("sortblock_dia".equalsIgnoreCase(e.getKey())) {
 			sortblock_dia = toDouble(e.getValue());
+		} else if ("fixpolygonY".equalsIgnoreCase(e.getKey())) {
+			fixpolygonY = toBoolean(e.getValue());
 		} else 
 			ret = false;
+
 		return ret;
 	}
 

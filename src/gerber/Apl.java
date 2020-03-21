@@ -632,13 +632,14 @@ public class Apl {
 	}
 	private static void dealWithGerber(String gtl,String gbl,Apl apl_gtl,Apl apl_gbl) {
 		Rectangle dtl = apl_gtl.initClip();
-		Rectangle dbl = apl_gbl.initClip();
+		Rectangle dbl = apl_gbl == null ? dtl : apl_gbl.initClip();
 		int maxW = Math.max(dtl.width, dbl.width);
 		int maxH = Math.max(dtl.height, dbl.height);
 		int minx = Math.min(dtl.x, dbl.x);
 		int miny = Math.min(dtl.y, dbl.y);
 		apl_gtl.setClip(minx, miny, maxW, maxH);
-		apl_gbl.setClip(minx, miny,maxW, maxH);
+		if(apl_gbl != null)
+			apl_gbl.setClip(minx, miny,maxW, maxH);
 		
 //		apl.drawFrame();
 		apl_gtl.drawAndWritePNG(gtl);
@@ -718,6 +719,7 @@ public class Apl {
 			out.write("mirroHorizontal_gbl = false  ");out.newLine();
 			out.write("paint_vertical=true			");out.newLine();
 			out.write("sortblock_dia=0.04			");out.newLine();
+			out.write("fixpolygonY=false			");out.newLine();
 
 			out.write("                             ");out.newLine();
 			out.write("#locating hole               ");out.newLine();

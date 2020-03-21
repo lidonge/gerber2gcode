@@ -608,11 +608,13 @@ public class GerberBoard implements IGerberBoard{
 			String s = "";
 			int hw = p.getBounds().width/2;
 			int hh = p.getBounds().height/2;
+			//System.out.println(ConfigTool.getInstance().fixpolygonY+"==================" + hw + "," + hh);
 			int[] xpos = new int[p.npoints];
 			int[] ypos = new int[p.npoints];
 			for(int i = 0;i<p.npoints;i++) {
 				xpos[i] = p.xpoints[i]+hw;
-				ypos[i] = p.ypoints[i]+hh;
+				ypos[i] = ConfigTool.getInstance().fixpolygonY ? (p.ypoints[i] -hh/2) : (p.ypoints[i] + hh);
+				//ypos[i] =  p.ypoints[i] -hh/2 ;
 //				s += "("+p.xpoints[i] +","+p.ypoints[i]+")";
 			}
 			g2d.fillPolygon(new Polygon(xpos,ypos,p.npoints));
