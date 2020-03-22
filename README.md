@@ -26,3 +26,6 @@ for making PCB at home.
 `mvn jar`
 
 `java -jar  ./target/gerber2gcode-0.0.1-SNAPSHOT.jar`
+
+## known issues
+* The polygon pad's location is wrong at y-axis, i do not know why! So there is a workaround in config file, if the locationY is wrong, try to change the walue of fixpolygonY.
