@@ -704,53 +704,6 @@ public class Apl {
 
 		System.out.println("===========================================");
 	}
-	private static void genDefaultConf(String conf) {
-		try {
-			FileWriter writer = new FileWriter(conf);
-			BufferedWriter out = new BufferedWriter(writer);
-			out.write("#using inch					");out.newLine();
-			out.write("                             ");out.newLine();
-			out.write("#general parameters          ");out.newLine();
-			out.write("ppi=1000                     ");out.newLine();
-			out.write("border=0.1                   ");out.newLine();
-			out.write("mirroVertical_gtl = false    ");out.newLine();
-			out.write("mirroHorizontal_gtl = false  ");out.newLine();
-			out.write("mirroVertical_gbl = false    ");out.newLine();
-			out.write("mirroHorizontal_gbl = false  ");out.newLine();
-			out.write("paint_vertical=true			");out.newLine();
-			out.write("sortblock_dia=0.04			");out.newLine();
-			out.write("fixpolygonY=false			");out.newLine();
-
-			out.write("                             ");out.newLine();
-			out.write("#locating hole               ");out.newLine();
-			out.write("locating_hole_size=0.06      ");out.newLine();
-			out.write("locating_hole_deepth=-0.08	");out.newLine();
-			out.write("                             ");out.newLine();
-			out.write("#drill tools                 ");out.newLine();
-			out.write("drillSafeDeepth=10           ");out.newLine();
-			out.write("downSpeed=1200               ");out.newLine();
-			out.write("drillSpeed=200               ");out.newLine();
-			out.write("drillDeepth=-0.06            ");out.newLine();
-			out.write("                             ");out.newLine();
-			out.write("#drill file config           ");out.newLine();
-			out.write("drill_integer=2              ");out.newLine();
-			out.write("drill_decimal=5              ");out.newLine();
-			out.write("                             ");out.newLine();
-			out.write("#gerber file config          ");out.newLine();
-			out.write("gerber_integer=2             ");out.newLine();
-			out.write("gerber_decimal=5             ");out.newLine();
-			out.write("                             ");out.newLine();
-			out.write("#pen config                  ");out.newLine();
-			out.write("penDim = 0.02                ");out.newLine();
-			out.write("overPen = 0.2                ");out.newLine();
-			out.write("defaultSpeed = 3000          ");out.newLine();
-			out.write("lineSpeed = 50	            ");out.newLine();
-			out.close();
-			writer.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
 	public static void main(String[] args) {
 		if(args.length == 0 || "-h".equalsIgnoreCase(args[0])) {
 			help();
@@ -766,7 +719,7 @@ public class Apl {
 			if("genconf".equalsIgnoreCase(cmd[0])) {
 				String cfg = "default".equalsIgnoreCase(cmd[1]) ? CONF_FILE : cmd[1];
 				System.out.println("Generate default config file:" + cfg);
-				genDefaultConf(cfg);
+				ConfigTool.genDefaultConf(cfg);
 				return;
 			}else if("conf".equalsIgnoreCase(cmd[0])) {
 				conf = cmd[1];

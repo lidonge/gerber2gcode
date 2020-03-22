@@ -598,7 +598,32 @@ public class GerberBoard implements IGerberBoard{
 	 			g2d.setColor(Color.red);
 			}else
 				g2d.setColor(Color.white);
+			Stroke s = g2d.getStroke();
+			if(s instanceof ICNCStroke) {
+				g2d.setStroke(new ICNCStroke() {
 
+					@Override
+					public Shape createStrokedShape(Shape p) {
+						return null;
+					}
+
+					@Override
+					public int getDrillTool() {
+						return c.drillTool;
+					}
+
+					@Override
+					public double getToolSize() {
+						return 0.08;
+					}
+
+					@Override
+					public double getDeepth() {
+						return ConfigTool.getInstance().drillDeepth;
+					}
+					
+				});
+			}
 			g2d.fillOval(c.x,c.y, c.diameter, c.diameter);
 		} else if (o instanceof Rect) {
 			Rect r = (Rect)o;
@@ -608,12 +633,24 @@ public class GerberBoard implements IGerberBoard{
 			String s = "";
 			int hw = p.getBounds().width/2;
 			int hh = p.getBounds().height/2;
+			int xlarge = hw - hh;
+			boolean fixpolygonY = ConfigTool.getInstance().fixpolygonY;
 			//System.out.println(ConfigTool.getInstance().fixpolygonY+"==================" + hw + "," + hh);
 			int[] xpos = new int[p.npoints];
 			int[] ypos = new int[p.npoints];
 			for(int i = 0;i<p.npoints;i++) {
-				xpos[i] = p.xpoints[i]+hw;
-				ypos[i] = ConfigTool.getInstance().fixpolygonY ? (p.ypoints[i] -hh/2) : (p.ypoints[i] + hh);
+				if(fixpolygonY && xlarge != 0) {
+					if(xlarge > 0) {
+						xpos[i] = p.xpoints[i] + hw;
+						ypos[i] = p.ypoints[i] - hh/2;
+					}else {
+						xpos[i] = p.xpoints[i] - hw/2;
+						ypos[i] = p.ypoints[i] - hh;
+					}
+				}else {
+					xpos[i] = p.xpoints[i] + hw;
+					ypos[i] = p.ypoints[i] + hh;
+				}
 				//ypos[i] =  p.ypoints[i] -hh/2 ;
 //				s += "("+p.xpoints[i] +","+p.ypoints[i]+")";
 			}

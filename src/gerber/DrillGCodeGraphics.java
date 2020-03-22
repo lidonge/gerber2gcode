@@ -75,6 +75,8 @@ public class DrillGCodeGraphics extends AbstractGCodeGraphics {
 	@Override
 	public void fillOval(int x, int y, int width, int height) {
 		ICNCStroke s = (ICNCStroke) getStroke();
+		int drillTool= s.getDrillTool();
+		System.out.println("***********drillTool:"+drillTool);
 		DrillGroup g = groups.get(new Integer(s.getDrillTool()));
 		if(g == null) {
 			g = _newTool(s);
